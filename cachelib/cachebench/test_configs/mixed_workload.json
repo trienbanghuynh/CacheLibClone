@@ -1,0 +1,45 @@
+// Mixed workload: ~95% small items (BigHash/SOC) + ~5% large items (BlockCache/LOC)
+// Storage: file-backed via /dev/shm (RAM disk), FDP code path emulated.
+// Run with: cachebench --config mixed_workload.json
+
+{
+  "cache_config": {
+    "cacheSizeMB": 512,
+    "poolRebalanceIntervalSec": 1,
+    "moveOnSlabRelease": false,
+
+    "nvmCachePaths": ["/dev/shm/cachelib_navy.bin"],
+    "nvmCacheSizeMB": 512,
+
+    "navyBlockSize": 4096,
+    "navyRegionSizeMB": 16,
+
+    "navyBigHashSizePct": 10,
+    "navySmallItemMaxSize": 2048,
+    "navyBigHashBucketSize": 4096,
+
+    "navyAdmissionWriteRate": 104857600,
+    "navyMaxConcurrentInserts": 16,
+    "navyReaderThreads": 4,
+    "navyWriterThreads": 2,
+
+    "navyEnableIoUring": true,
+    "deviceEnableFDP": true,
+    "navyQDepth": 32
+  },
+  "test_config": {
+    "numOps": 105,
+    "numThreads": 4,
+
+    "keySizeRange": [8, 32, 64],
+    "keySizeRangeProbability": [0.6, 0.3, 0.1],
+
+
+    "valSizeRange": [64, 512, 4096, 65536, 1048576],
+    "valSizeRangeProbability": [0.50, 0.25, 0.15, 0.07, 0.03],
+
+    "getRatio": 0.0,
+    "setRatio": 1.0,
+    "delRatio": 0.0
+  }
+}

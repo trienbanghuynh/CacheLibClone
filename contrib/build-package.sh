@@ -276,6 +276,8 @@ CMAKE_PARAMS="$cmake_custom_params"
 test "$debug_build" \
   && CMAKE_PARAMS="$CMAKE_PARAMS -DCMAKE_BUILD_TYPE=Debug" \
   || CMAKE_PARAMS="$CMAKE_PARAMS -DCMAKE_BUILD_TYPE=RelWithDebInfo"
+# CMake 4.x removed compatibility with cmake_minimum_required < 3.5
+CMAKE_PARAMS="$CMAKE_PARAMS -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 
 
 MAKE_PARAMS=

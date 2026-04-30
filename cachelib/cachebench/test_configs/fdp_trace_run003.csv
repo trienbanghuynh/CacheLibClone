@@ -1,0 +1,192 @@
+Timestamp (ms),Thread ID,Function,Engine,Item Size,Offset / LBA,FDP PID,Notes
+100.0,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+100.001,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+100.004,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+100.005,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+100.009,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+100.012,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+100.015,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+100.018,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+100.02,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+100.022,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+100.026,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+100.028,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+100.031,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+100.033,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+100.038,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+100.04,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+100.044,1405,RegionManager::doFlush,BlockCache,16.0 MB,0x108808,2,Region full (16 MB) → flush to storage
+101.64,1405,prepFdpUringCmdSqe,BlockCache,16.0 MB,0x108808,2,Build io_uring FDP NVMe cmd for region flush
+103.879,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+103.881,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+103.885,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+103.887,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+103.89,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+103.893,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+103.896,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+103.899,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+103.901,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+103.903,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+103.906,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+103.908,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+103.91,1405,RegionManager::doFlush,BlockCache,16.0 MB,0xBE0561,2,Region full (16 MB) → flush to storage
+104.781,1405,prepFdpUringCmdSqe,BlockCache,16.0 MB,0xBE0561,2,Build io_uring FDP NVMe cmd for region flush
+107.345,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+107.348,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+107.349,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+107.351,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+107.354,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+107.357,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+107.361,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+107.364,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+107.366,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+107.368,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+107.37,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+107.373,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+107.378,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+107.379,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+107.381,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+107.382,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+107.384,1406,RegionManager::doFlush,BlockCache,16.0 MB,0x7D2684,2,Region full (16 MB) → flush to storage
+109.131,1406,prepFdpUringCmdSqe,BlockCache,16.0 MB,0x7D2684,2,Build io_uring FDP NVMe cmd for region flush
+110.86,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+110.862,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+110.863,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+110.865,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+110.869,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+110.871,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+110.872,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+110.875,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+110.88,1402,BigHash::writeBucket,BigHash,4.0 KB,0xA8ABE1,1,Bucket full → write 4 KB sector
+110.882,1402,prepFdpUringCmdSqe,BigHash,4.0 KB,0xA8ABE1,1,Build io_uring FDP NVMe cmd (hint ignored on non-FDP hw)
+110.884,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+110.887,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+110.891,1403,BigHash::writeBucket,BigHash,4.0 KB,0xE0E018,1,Bucket full → write 4 KB sector
+110.894,1403,prepFdpUringCmdSqe,BigHash,4.0 KB,0xE0E018,1,Build io_uring FDP NVMe cmd (hint ignored on non-FDP hw)
+110.899,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+110.901,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+110.903,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+110.905,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+110.908,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+110.909,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+110.914,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+110.916,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+110.917,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+110.92,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+110.921,1406,RegionManager::doFlush,BlockCache,16.0 MB,0x9218BB,2,Region full (16 MB) → flush to storage
+111.648,1406,prepFdpUringCmdSqe,BlockCache,16.0 MB,0x9218BB,2,Build io_uring FDP NVMe cmd for region flush
+113.054,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+113.056,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+113.057,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+113.059,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+113.063,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+113.064,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+113.066,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+113.068,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+113.07,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+113.072,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+113.076,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+113.079,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+113.082,1405,RegionManager::doFlush,BlockCache,16.0 MB,0x7CDC96,2,Region full (16 MB) → flush to storage
+114.05,1405,prepFdpUringCmdSqe,BlockCache,16.0 MB,0x7CDC96,2,Build io_uring FDP NVMe cmd for region flush
+115.626,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+115.629,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+115.633,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+115.634,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+115.638,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+115.64,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+115.642,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+115.645,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+115.647,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+115.65,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+115.654,1405,RegionManager::doFlush,BlockCache,16.0 MB,0xC315A8,2,Region full (16 MB) → flush to storage
+116.947,1405,prepFdpUringCmdSqe,BlockCache,16.0 MB,0xC315A8,2,Build io_uring FDP NVMe cmd for region flush
+121.861,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+121.863,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+121.867,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+121.869,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+121.871,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+121.872,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+121.877,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+121.879,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+121.883,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+121.884,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+121.886,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+121.889,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+121.894,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+121.897,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+121.901,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+121.903,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+121.907,1406,RegionManager::doFlush,BlockCache,16.0 MB,0x3B0B99,2,Region full (16 MB) → flush to storage
+122.707,1406,prepFdpUringCmdSqe,BlockCache,16.0 MB,0x3B0B99,2,Build io_uring FDP NVMe cmd for region flush
+125.678,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+125.681,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+125.686,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+125.688,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+125.691,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+125.693,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+125.696,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+125.698,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+125.702,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+125.704,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+125.707,1406,RegionManager::doFlush,BlockCache,16.0 MB,0xFA79D0,2,Region full (16 MB) → flush to storage
+126.754,1406,prepFdpUringCmdSqe,BlockCache,16.0 MB,0xFA79D0,2,Build io_uring FDP NVMe cmd for region flush
+128.636,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+128.637,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+128.639,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+128.64,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+128.644,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+128.647,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+128.651,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+128.653,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+128.657,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+128.659,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+128.66,1406,RegionManager::doFlush,BlockCache,16.0 MB,0xAA1C24,2,Region full (16 MB) → flush to storage
+129.34,1406,prepFdpUringCmdSqe,BlockCache,16.0 MB,0xAA1C24,2,Build io_uring FDP NVMe cmd for region flush
+131.894,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+131.897,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+131.899,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+131.901,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+131.904,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+131.906,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+131.908,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+131.911,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+131.915,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+131.917,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+131.921,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+131.922,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+131.923,1402,BigHash::writeBucket,BigHash,4.0 KB,0xFF3C9C,1,Bucket full → write 4 KB sector
+131.925,1402,prepFdpUringCmdSqe,BigHash,4.0 KB,0xFF3C9C,1,Build io_uring FDP NVMe cmd (hint ignored on non-FDP hw)
+131.927,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+131.93,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+131.935,1405,RegionManager::doFlush,BlockCache,16.0 MB,0x266BAD,2,Region full (16 MB) → flush to storage
+133.352,1405,prepFdpUringCmdSqe,BlockCache,16.0 MB,0x266BAD,2,Build io_uring FDP NVMe cmd for region flush
+136.735,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+136.737,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+136.742,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+136.743,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+136.747,1403,BigHash::writeBucket,BigHash,4.0 KB,0x67A40,1,Bucket full → write 4 KB sector
+136.748,1403,prepFdpUringCmdSqe,BigHash,4.0 KB,0x67A40,1,Build io_uring FDP NVMe cmd (hint ignored on non-FDP hw)
+136.755,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+136.758,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+136.761,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+136.764,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+136.766,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+136.769,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+136.773,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+136.775,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+136.777,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+136.778,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+136.78,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+136.783,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+136.785,1405,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+136.787,1405,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+136.788,1405,RegionManager::doFlush,BlockCache,16.0 MB,0xE9F6E0,2,Region full (16 MB) → flush to storage
+138.398,1405,prepFdpUringCmdSqe,BlockCache,16.0 MB,0xE9F6E0,2,Build io_uring FDP NVMe cmd for region flush
+142.989,1402,Driver::insert,N/A,727 B,-,-,Dispatching small item
+142.991,1402,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+142.995,1403,Driver::insert,N/A,727 B,-,-,Dispatching small item
+142.997,1403,BigHash::insert,BigHash,727 B,-,-,Item < 2048 B → routed to BigHash
+143.002,1406,Driver::insert,N/A,3.6 MB,-,-,Dispatching large item
+143.004,1406,BlockCache::insert,BlockCache,3.6 MB,-,-,Item >= 2048 B → routed to BlockCache
+143.006,1408,io_uring_submit,Kernel,-,-,-,Kernel submits batched io_uring SQEs to NVMe driver

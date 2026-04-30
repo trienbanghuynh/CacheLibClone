@@ -13,7 +13,13 @@ build-glog/
 build-googletest/
 build-sparsemap/
 build-wangle/
+build/
+build-xxhash/
+build-zstd/
 
+.vscode/
+opt/
+opt/*
 # Required source-code dependencies, fetched by ./contrib/ scripts.
 cachelib/external/fmt/
 cachelib/external/gflags/

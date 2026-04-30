@@ -38,6 +38,13 @@ gcc-toolset-14
 CMAKE_C_COMPILER=/opt/rh/gcc-toolset-14/root/usr/bin/gcc
 CMAKE_CXX_COMPILER=/opt/rh/gcc-toolset-14/root/usr/bin/g++
 
+[cmake.defines.all(distro=ubuntu)]
+CMAKE_C_COMPILER=/usr/bin/clang-18
+CMAKE_CXX_COMPILER=/usr/bin/clang++-18
+CMAKE_C_FLAGS=-gdwarf-4
+CMAKE_CXX_FLAGS=-gdwarf-4
+BUILD_TESTS=OFF
+
 [shipit.pathmap]
 fbcode/cachelib = cachelib
 fbcode/cachelib/public_tld = .

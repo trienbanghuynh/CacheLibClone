@@ -917,6 +917,10 @@ if __name__ == "__main__":
             # tests.
             defines["CMAKE_BUILD_WITH_INSTALL_RPATH"] = "ON"
 
+        # CMake 4.x removed compatibility with cmake_minimum_required < 3.5.
+        # This allows older dependency CMakeLists.txt files to still configure.
+        defines.setdefault("CMAKE_POLICY_VERSION_MINIMUM", "3.5")
+
         defines.update(self.defines)
         define_args = ["-D%s=%s" % (k, v) for (k, v) in defines.items()]
 

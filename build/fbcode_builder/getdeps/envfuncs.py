@@ -10,8 +10,8 @@ from __future__ import annotations
 import os
 import shlex
 import sys
-from collections.abc import ItemsView, Iterator, KeysView, Mapping, ValuesView
-from typing import overload, TypeVar
+from collections.abc import ItemsView, Iterator, KeysView, ValuesView
+from typing import Mapping, overload, TypeVar
 
 _T = TypeVar("_T")
 

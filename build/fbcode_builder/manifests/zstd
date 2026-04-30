@@ -34,3 +34,4 @@ subdir = zstd-1.5.5/build/cmake
 # And while we're at it, let's just always link statically.
 [cmake.defines]
 ZSTD_BUILD_SHARED = OFF
+CMAKE_POLICY_VERSION_MINIMUM = 3.5
