@@ -25,26 +25,29 @@ STORAGE_FILE="/dev/shm/cachelib_navy.bin"
 truncate -s 512M "$STORAGE_FILE"
 
 echo "Starting bpftrace capture -> $OUTPUT_CSV"
-sudo bpftrace -e '
-uprobe:'"$CACHEBENCH_BIN"':*navy*BigHash*insert* {
-    printf("%u, BigHash::insert\n", elapsed / 1000000);
+sudo /usr/bin/bpftrace -e '
+uprobe:'"$CACHEBENCH_BIN"':_ZN8facebook8cachelib4navy7BigHash6insertENS0_9HashedKeyENS1_11BufferViewTIKhEEhjj {
+    printf("%u, BigHash::insert, %d\n", elapsed / 1000000, tid);
 }
-uprobe:'"$CACHEBENCH_BIN"':*navy*BlockCache*insert* {
-    printf("%u, BlockCache::insert\n", elapsed / 1000000);
+uprobe:'"$CACHEBENCH_BIN"':_ZN8facebook8cachelib4navy10BlockCache6insertENS0_9HashedKeyENS1_11BufferViewTIKhEEhjj {
+    printf("%u, BlockCache::insert, %d\n", elapsed / 1000000, tid);
 }
-uprobe:'"$CACHEBENCH_BIN"':*prepFdpUringCmdSqe* {
-    printf("%u, prepFdpUringCmdSqe, Size: %lu, Offset: %lx, PID: %u\n",
-           elapsed / 1000000, arg2, arg3, arg6);
+uprobe:'"$CACHEBENCH_BIN"':_ZN8facebook8cachelib4navy6Driver6insertENS0_9HashedKeyENS1_11BufferViewTIKhEEhjj {
+    printf("%u, Driver::insert, %d\n", elapsed / 1000000, tid);
 }
-uprobe:'"$CACHEBENCH_BIN"':*Driver*insert* {
-    printf("%u, Driver::insert\n", elapsed / 1000000);
+uprobe:'"$CACHEBENCH_BIN"':_ZN8facebook8cachelib4navy12_GLOBAL__N_110FileDevice9writeImplEmjPKvi {
+    printf("%u, FileDevice::write, %d, Size: %u, Offset: %lu\n",
+           elapsed / 1000000, tid, (uint32)arg2, arg1);
 }
 ' > "$OUTPUT_CSV" &
 
 BPF_PID=$!
 
+# Wait for bpftrace to compile and attach uprobes before starting the workload.
+sleep 3
+
 echo "Running cachebench with config: $CONFIG_FILE"
-"$CACHEBENCH_BIN" --config "$CONFIG_FILE"
+"$CACHEBENCH_BIN" --json_test_config "$CONFIG_FILE"
 
 kill "$BPF_PID" 2>/dev/null || true
 rm -f "$STORAGE_FILE"

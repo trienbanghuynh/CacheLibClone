@@ -41,6 +41,7 @@ target_link_libraries(cachelib_common PUBLIC
   FBThrift::thriftcpp2
   FBThrift::thriftprotocol
   FBThrift::thrift_dynamic_value
+  FBThrift::thrifttype
   Folly::folly
   Folly::follybenchmark
   Folly::folly_debugging_exception_tracer_exception_tracer

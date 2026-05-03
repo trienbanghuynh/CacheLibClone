@@ -1,6 +1,6 @@
 // Mixed workload: ~95% small items (BigHash/SOC) + ~5% large items (BlockCache/LOC)
-// Storage: file-backed via /dev/shm (RAM disk), FDP code path emulated.
-// Run with: cachebench --config mixed_workload.json
+// Storage: file-backed via /dev/shm (RAM disk). io_uring and FDP disabled for tmpfs compat.
+// Run with: cachebench --json_test_config mixed_workload.json
 
 {
   "cache_config": {
@@ -23,15 +23,16 @@
     "navyReaderThreads": 4,
     "navyWriterThreads": 2,
 
-    "navyEnableIoUring": true,
-    "deviceEnableFDP": true,
+    "navyEnableIoUring": false,
+    "deviceEnableFDP": false,
     "navyQDepth": 32
   },
   "test_config": {
-    "numOps": 105,
+    "numOps": 100000,
     "numThreads": 4,
+    "numKeys": 1000000,
 
-    "keySizeRange": [8, 32, 64],
+    "keySizeRange": [8, 32, 64, 128],
     "keySizeRangeProbability": [0.6, 0.3, 0.1],
 
 
