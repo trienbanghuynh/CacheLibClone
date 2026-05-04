@@ -19,6 +19,7 @@ fi
 
 CONFIG_FILE="${CONFIG_FILE:-$(dirname "$0")/mixed_workload.json}"
 OUTPUT_CSV="trace_output.csv"
+STATS_FILE="cachebench_stats.txt"
 STORAGE_FILE="/dev/shm/cachelib_navy.bin"
 
 # Pre-allocate the backing file on the RAM disk.
@@ -47,11 +48,19 @@ BPF_PID=$!
 sleep 3
 
 echo "Running cachebench with config: $CONFIG_FILE"
-"$CACHEBENCH_BIN" --json_test_config "$CONFIG_FILE"
+"$CACHEBENCH_BIN" --json_test_config "$CONFIG_FILE" 2>&1 | tee "$STATS_FILE"
 
 kill "$BPF_PID" 2>/dev/null || true
 rm -f "$STORAGE_FILE"
 
-echo "Test complete. Trace saved to $OUTPUT_CSV"
-echo "To convert to parsed CSV run:"
+echo "Test complete."
+echo "  Trace  : $OUTPUT_CSV"
+echo "  Stats  : $STATS_FILE"
+echo ""
+echo "To parse the bpftrace trace:"
 echo "  python3 $(dirname "$0")/generate_trace_csv.py $OUTPUT_CSV"
+echo ""
+echo "To analyze workload distribution (no bpftrace needed):"
+echo "  python3 $(dirname "$0")/generate_trace_csv.py --analyze-config $CONFIG_FILE"
+echo "  python3 $(dirname "$0")/generate_trace_csv.py --from-stats $STATS_FILE"
+echo "  python3 $(dirname "$0")/generate_trace_csv.py --analyze-config $CONFIG_FILE --from-stats $STATS_FILE"
