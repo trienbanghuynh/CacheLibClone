@@ -226,6 +226,12 @@ Key parameters you may want to tune:
 | `valSizeRange` | 64–1MB | Item size distribution |
 | `valSizeRangeProbability` | 50/25/15/7/3% | Probability weights for each size range |
 
+> **`valSizeRange` and `valSizeRangeProbability` are required.** There is no
+> built-in default distribution. If omitted, cachebench passes the startup
+> validation check (both fields being empty satisfies `size() == size()`) but
+> crashes with undefined behavior at runtime when it tries to sample an item
+> size from an empty vector. Always set both fields explicitly.
+
 ---
 
 ## Simulator Mode (no cachebench required)
