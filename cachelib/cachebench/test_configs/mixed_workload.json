@@ -25,9 +25,7 @@
 
     "navyEnableIoUring": false,
     "deviceEnableFDP": false,
-    "navyQDepth": 32,
-
-    "printNvmCounters": true
+    "navyQDepth": 32
   },
   "test_config": {
     "numOps": 100000,
