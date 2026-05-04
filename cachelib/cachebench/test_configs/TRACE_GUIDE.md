@@ -142,6 +142,73 @@ grep "BlockCache region" trace_output_parsed.csv | wc -l # count BlockCache chun
 
 ---
 
+## How the BigHash / BlockCache Distribution Works
+
+CacheLib Navy routes every incoming item to one of two engines based purely on
+**item size** compared to a fixed threshold:
+
+```
+item size ≤ navySmallItemMaxSize  →  BigHash   (optimised for small items)
+item size >  navySmallItemMaxSize  →  BlockCache (optimised for large items)
+```
+
+There is no randomness in the routing decision. The split percentage is
+entirely determined by your workload config — specifically by how many items
+fall on each side of the `navySmallItemMaxSize` boundary.
+
+### How to calculate your split
+
+The workload config defines item sizes and their probability weights:
+
+```json
+"valSizeRange":            [64,   512,  4096, 65536, 1048576],
+"valSizeRangeProbability": [0.50, 0.25, 0.15,  0.07,    0.03]
+```
+
+With `navySmallItemMaxSize: 2048`, sum the weights of every size ≤ 2048 B:
+
+```
+BigHash    = P(64 B) + P(512 B)              = 0.50 + 0.25 = 0.75  →  75%
+BlockCache = P(4 KB) + P(64 KB) + P(1 MB)   = 0.15 + 0.07 + 0.03 = 0.25  →  25%
+```
+
+### To change the split, change the config
+
+| Goal | What to change |
+|------|---------------|
+| More items to BigHash | Lower `navySmallItemMaxSize` OR shift `valSizeRangeProbability` weight toward smaller sizes |
+| More items to BlockCache | Raise `navySmallItemMaxSize` OR shift weight toward larger sizes |
+| Exact target split | Adjust `valSizeRangeProbability` so weights ≤ threshold sum to your target |
+
+**Example — change to 60% BigHash / 40% BlockCache:**
+
+```json
+"valSizeRange":            [64,   512,  4096, 65536, 1048576],
+"valSizeRangeProbability": [0.40, 0.20, 0.20,  0.12,    0.08]
+```
+
+Check: `P(64) + P(512) = 0.40 + 0.20 = 0.60` → 60% BigHash.
+
+### Why actual counts may differ slightly from the configured split
+
+The theoretical split assumes every item reaches NVM. In practice two factors
+can shift the admitted mix:
+
+1. **Admission rate limiter** (`navyAdmissionWriteRate`): limits NVM write
+   throughput. Large items consume more bytes per insert, so they are rejected
+   proportionally more under pressure, nudging the admitted mix slightly toward
+   BigHash.
+
+2. **RAM eviction policy**: items only reach NVM when evicted from DRAM. If
+   the DRAM cache is large enough to hold all items, few reach NVM regardless
+   of the configured split.
+
+The configured `valSizeRangeProbability` always defines the *intended* routing
+split. Monitor the actual split by checking `NVM Puts` counts in the cachebench
+output after a run.
+
+---
+
 ## Workload Configuration (`mixed_workload.json`)
 
 Key parameters you may want to tune:
