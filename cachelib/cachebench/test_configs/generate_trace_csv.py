@@ -2,22 +2,34 @@
 """
 Generate a CacheLib trace CSV.
 
-Two modes:
-  1. Standalone simulation (no cachebench needed)
-  2. Parse a real bpftrace trace_output.csv from run_test.sh
-
 Usage:
-  python3 generate_trace_csv.py                          # simulate with defaults
-  python3 generate_trace_csv.py --run 2                  # run 002: 60 small, 20 large, seed 99
-  python3 generate_trace_csv.py --small 80 --large 15    # custom counts
-  python3 generate_trace_csv.py --seed 7 --out my.csv    # custom seed + output file
-  python3 generate_trace_csv.py trace_output.csv         # parse real bpftrace output
+  python3 generate_trace_csv.py                  # auto-detect or capture trace_output.csv
+  python3 generate_trace_csv.py trace_output.csv # parse a specific bpftrace output file
+
+To customise the simulation, edit the values in the '__main__' block at the
+bottom of this file:
+
+  n_small   Number of small items (64 B – 2 KB). Each goes to BigHash.
+            Increase this to stress the BigHash bucket-flush path.
+
+  n_large   Number of large items (2 KB – 6 MB). Each goes to BlockCache.
+            Increase this to trigger more BlockCache region flushes.
+
+  seed      Random seed. Change it to get a different shuffle / size
+            distribution while keeping the run reproducible.
+
+  out       Output CSV path. Defaults to fdp_trace.csv in this directory.
+
+The boundary between small and large items is controlled by SMALL_ITEM_MAX
+(currently 2048 B), which must match navySmallItemMaxSize in your cachebench
+JSON config.
 """
 from __future__ import annotations
 
-import argparse
 import csv
+import os
 import random
+import subprocess
 import sys
 
 COLUMNS = [
@@ -28,8 +40,7 @@ COLUMNS = [
     "Function",
     "Engine",
     "Routing",
-    "Write Size (B)",
-    "Write Size (Human)",
+    "Write Size",
     "File Offset (B)",
     "Notes",
 ]
@@ -129,8 +140,7 @@ def simulate_trace(n_small: int = 100, n_large: int = 5) -> list[dict]:
             "Function": "Driver::insert",
             "Engine": _engine("Driver::insert"),
             "Routing": _routing("Driver::insert"),
-            "Write Size (B)": "-",
-            "Write Size (Human)": "-",
+            "Write Size": "-",
             "File Offset (B)": "-",
             "Notes": f"Dispatching {'small' if kind == 'small' else 'large'} item ({_fmt_size(size)})",
         })
@@ -143,8 +153,7 @@ def simulate_trace(n_small: int = 100, n_large: int = 5) -> list[dict]:
             "Function": func,
             "Engine": _engine(func),
             "Routing": _routing(func),
-            "Write Size (B)": "-",
-            "Write Size (Human)": "-",
+            "Write Size": "-",
             "File Offset (B)": "-",
             "Notes": "",
         })
@@ -160,8 +169,7 @@ def simulate_trace(n_small: int = 100, n_large: int = 5) -> list[dict]:
                     "Function": "FileDevice::write",
                     "Engine": "Kernel/IO",
                     "Routing": "",
-                    "Write Size (B)": bh_bucket_size,
-                    "Write Size (Human)": _fmt_size(bh_bucket_size),
+                    "Write Size": _fmt_size(bh_bucket_size),
                     "File Offset (B)": offset,
                     "Notes": "BigHash bucket flush (4 KB)",
                 })
@@ -179,8 +187,7 @@ def simulate_trace(n_small: int = 100, n_large: int = 5) -> list[dict]:
                         "Function": "FileDevice::write",
                         "Engine": "Kernel/IO",
                         "Routing": "",
-                        "Write Size (B)": chunk_size,
-                        "Write Size (Human)": _fmt_size(chunk_size),
+                        "Write Size": _fmt_size(chunk_size),
                         "File Offset (B)": base_offset + chunk_i * chunk_size,
                         "Notes": "BlockCache region chunk (1 MB, split by deviceMaxWriteSize)",
                     })
@@ -193,8 +200,7 @@ def simulate_trace(n_small: int = 100, n_large: int = 5) -> list[dict]:
         "Function": "io_uring_submit",
         "Engine": "Kernel/IO",
         "Routing": "",
-        "Write Size (B)": "-",
-        "Write Size (Human)": "-",
+        "Write Size": "-",
         "File Offset (B)": "-",
         "Notes": "Kernel submits batched io_uring SQEs",
     })
@@ -225,7 +231,7 @@ def parse_csv(path: str) -> list[dict]:
             routing = _routing(func)
 
             write_size = "-"
-            write_size_h = "-"
+            write_size_fmt = "-"
             file_offset = "-"
             notes = ""
 
@@ -235,7 +241,7 @@ def parse_csv(path: str) -> list[dict]:
                     p = part.strip()
                     if p.startswith("Size:"):
                         write_size = p.replace("Size:", "").strip()
-                        write_size_h = _fmt_size(write_size)
+                        write_size_fmt = _fmt_size(write_size)
                         sz = int(write_size)
                         if sz == 4096:
                             notes = "BigHash bucket flush (4 KB)"
@@ -254,8 +260,7 @@ def parse_csv(path: str) -> list[dict]:
                 "Function": func,
                 "Engine": engine,
                 "Routing": routing,
-                "Write Size (B)": write_size,
-                "Write Size (Human)": write_size_h,
+                "Write Size": write_size_fmt,
                 "File Offset (B)": file_offset,
                 "Notes": notes,
             })
@@ -272,36 +277,52 @@ def write_csv(rows: list[dict], out_path: str) -> None:
 
 
 # ── entry point ───────────────────────────────────────────────────────────────
-RUN_PROFILES = {
-    1: dict(n_small=100, n_large=5,  seed=42),
-    2: dict(n_small=60,  n_large=20, seed=99),
-}
-
 BASE_DIR = "/home/rsebenchtop2/CacheLib/cachelib/cachebench/test_configs"
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate CacheLib trace CSV")
-    parser.add_argument("input", nargs="?", help="Real bpftrace CSV to parse")
-    parser.add_argument("--run",   type=int,  default=None)
-    parser.add_argument("--small", type=int,  default=None)
-    parser.add_argument("--large", type=int,  default=None)
-    parser.add_argument("--seed",  type=int,  default=None)
-    parser.add_argument("--out",   type=str,  default=None)
-    args = parser.parse_args()
+# Locations to search for a real bpftrace CSV when none is specified.
+TRACE_SEARCH_PATHS = [
+    "trace_output.csv",
+    os.path.expanduser("~/CacheLib/trace_output.csv"),
+]
 
-    if args.input:
-        print(f"Parsing real trace: {args.input}")
-        rows = parse_csv(args.input)
-        out = args.out or args.input.replace(".csv", "_parsed.csv")
+
+RUN_TEST_SH = os.path.join(BASE_DIR, "run_test.sh")
+GENERATED_TRACE = "trace_output.csv"
+
+
+def _find_trace() -> str | None:
+    for path in TRACE_SEARCH_PATHS:
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def _capture_trace() -> str:
+    """Run run_test.sh to capture a real bpftrace trace, return path to output CSV."""
+    print(f"No trace found — running {RUN_TEST_SH} to capture one...")
+    result = subprocess.run(["bash", RUN_TEST_SH], cwd=BASE_DIR)
+    if result.returncode != 0:
+        print("Error: run_test.sh failed. Check that cachebench is built and bpftrace is installed.")
+        sys.exit(1)
+    # run_test.sh writes trace_output.csv into cwd (BASE_DIR)
+    return os.path.join(BASE_DIR, GENERATED_TRACE)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        input_path = sys.argv[1]
+        if not os.path.exists(input_path):
+            print(f"Warning: '{input_path}' not found — capturing a new trace.")
+            input_path = _capture_trace()
+        print(f"Parsing real trace: {input_path}")
+        rows = parse_csv(input_path)
+        out = input_path
     else:
-        profile = RUN_PROFILES.get(args.run, RUN_PROFILES[1])
-        n_small = args.small if args.small is not None else profile["n_small"]
-        n_large = args.large if args.large is not None else profile["n_large"]
-        seed    = args.seed  if args.seed  is not None else profile["seed"]
-        run_id  = args.run or 1
-        out     = args.out or f"{BASE_DIR}/fdp_trace_run{run_id:03d}.csv"
-        random.seed(seed)
-        print(f"Simulating run {run_id:03d}: {n_small} small + {n_large} large items  (seed={seed})")
-        rows = simulate_trace(n_small=n_small, n_large=n_large)
+        trace = _find_trace()
+        if not trace:
+            trace = _capture_trace()
+        print(f"Parsing real trace: {trace}")
+        rows = parse_csv(trace)
+        out = trace
 
     write_csv(rows, out)

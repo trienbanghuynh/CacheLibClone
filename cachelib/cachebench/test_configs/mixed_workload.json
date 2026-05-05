@@ -1,5 +1,5 @@
 // Mixed workload: ~95% small items (BigHash/SOC) + ~5% large items (BlockCache/LOC)
-// Storage: file-backed via /dev/shm (RAM disk). io_uring and FDP disabled for tmpfs compat.
+// Storage: real NVMe device (/dev/nvme0n1) with FDP and io_uring enabled.
 // Run with: cachebench --json_test_config mixed_workload.json
 
 {
@@ -8,8 +8,8 @@
     "poolRebalanceIntervalSec": 1,
     "moveOnSlabRelease": false,
 
-    "nvmCachePaths": ["/dev/shm/cachelib_navy.bin"],
-    "nvmCacheSizeMB": 512,
+    "nvmCachePaths": ["/dev/nvme0n1"],
+    "nvmCacheSizeMB": 102400,
 
     "navyBlockSize": 4096,
     "navyRegionSizeMB": 16,

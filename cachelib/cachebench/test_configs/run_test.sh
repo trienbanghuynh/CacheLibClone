@@ -20,6 +20,9 @@ fi
 CONFIG_FILE="${CONFIG_FILE:-$(dirname "$0")/mixed_workload.json}"
 OUTPUT_CSV="trace_output.csv"
 STORAGE_FILE="/dev/shm/cachelib_navy.bin"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+STATS_FILE="cachebench_stats_${TIMESTAMP}.txt"
+RESULTS_FILE="cachebench_results_${TIMESTAMP}.txt"
 
 # Pre-allocate the backing file on the RAM disk.
 truncate -s 512M "$STORAGE_FILE"
@@ -47,11 +50,18 @@ BPF_PID=$!
 sleep 3
 
 echo "Running cachebench with config: $CONFIG_FILE"
-"$CACHEBENCH_BIN" --json_test_config "$CONFIG_FILE"
+echo "  Stats file : $STATS_FILE"
+echo "  Results log: $RESULTS_FILE"
+"$CACHEBENCH_BIN" --json_test_config "$CONFIG_FILE" \
+  --progress_stats_file "$STATS_FILE" \
+  2>&1 | tee "$RESULTS_FILE"
 
 kill "$BPF_PID" 2>/dev/null || true
 rm -f "$STORAGE_FILE"
 
-echo "Test complete. Trace saved to $OUTPUT_CSV"
-echo "To convert to parsed CSV run:"
+echo "Test complete."
+echo "  Trace  : $OUTPUT_CSV"
+echo "  Stats  : $STATS_FILE"
+echo "  Results: $RESULTS_FILE"
+echo "To convert trace run:"
 echo "  python3 $(dirname "$0")/generate_trace_csv.py $OUTPUT_CSV"
