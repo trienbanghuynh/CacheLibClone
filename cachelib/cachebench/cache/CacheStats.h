@@ -92,6 +92,9 @@ class Stats : public StatsBase {
 
   uint64_t numNvmItemRemovedSetSize{0};
 
+  uint64_t numNvmBigHashInserts{0};
+  uint64_t numNvmBlockCacheInserts{0};
+
   util::PercentileStats::Estimates cacheAllocateLatencyNs;
   util::PercentileStats::Estimates cacheFindLatencyNs;
 
@@ -213,6 +216,8 @@ class Stats : public StatsBase {
     numNvmLogicalBytesWritten += other.numNvmLogicalBytesWritten;
 
     numNvmItemRemovedSetSize += other.numNvmItemRemovedSetSize;
+    numNvmBigHashInserts += other.numNvmBigHashInserts;
+    numNvmBlockCacheInserts += other.numNvmBlockCacheInserts;
     numNvmExceededMaxRetry += other.numNvmExceededMaxRetry;
     numNvmDeletes += other.numNvmDeletes;
     numNvmSkippedDeletes += other.numNvmSkippedDeletes;
@@ -533,6 +538,23 @@ class Stats : public StatsBase {
                "AbortsFromGet",
                numNvmAbortedPutOnInflightGet)
         << std::endl;
+    if (numNvmBigHashInserts > 0 || numNvmBlockCacheInserts > 0) {
+      const uint64_t totalNvmInserts =
+          numNvmBigHashInserts + numNvmBlockCacheInserts;
+      out << "== NVM Write Distribution ==\n";
+      out << folly::sformat(
+                 "  BigHash   (items <= smallItemMaxSize) : {:>10,} inserts"
+                 " ({:5.1f}%)\n",
+                 numNvmBigHashInserts,
+                 pctFn(numNvmBigHashInserts, totalNvmInserts));
+      out << folly::sformat(
+                 "  BlockCache (items > smallItemMaxSize) : {:>10,} inserts"
+                 " ({:5.1f}%)\n",
+                 numNvmBlockCacheInserts,
+                 pctFn(numNvmBlockCacheInserts, totalNvmInserts));
+      out << folly::sformat("  Total NVM engine inserts              : {:>10,}\n",
+                            totalNvmInserts);
+    }
     out << folly::sformat(
                "{:14}: {:15,}, {:10}: {:6.2f}%, {:8}: {:7,},"
                " {:16}: {:8,}",

@@ -603,10 +603,12 @@ Cache<Allocator>::Cache(const CacheConfig& config,
       auto path = config_.nvmCachePaths[0];
       bool isDir;
       bool isBlk = false;
+      bool isChr = false;
       try {
         isDir = cachelib::util::isDir(path);
         if (!isDir) {
           isBlk = cachelib::util::isBlk(path);
+          isChr = cachelib::util::isChr(path);
         }
       } catch (const std::system_error&) {
         XLOGF(INFO, "nvmCachePath {} does not exist", path);
@@ -628,7 +630,7 @@ Cache<Allocator>::Cache(const CacheConfig& config,
         XLOGF(INFO, "Configuring NVM cache: simple file {} size {} MB", path,
               config_.nvmCacheSizeMB);
         nvmConfig.navyConfig.setSimpleFile(path, config_.nvmCacheSizeMB * MB,
-                                           !isBlk /* truncateFile */);
+                                           !(isBlk || isChr) /* truncateFile */);
       }
     } else if (config_.nvmCachePaths.size() > 1) {
       XLOGF(INFO, "Configuring NVM cache: RAID-0 ({} devices) size {} MB",
@@ -1236,6 +1238,8 @@ std::unique_ptr<StatsBase> Cache<Allocator>::getStats() const {
                  : 0;
     };
     ret.numNvmItems = lookup("navy_bh_items") + lookup("navy_bc_items");
+    ret.numNvmBigHashInserts = lookup("navy_bh_inserts");
+    ret.numNvmBlockCacheInserts = lookup("navy_bc_inserts");
     ret.numNvmBytesWritten = lookup("navy_device_bytes_written");
     uint64_t now = fetchNandWrites();
     if (now > nandBytesBegin_) {

@@ -270,6 +270,15 @@ bool isBlk(const std::string& name) {
   return S_ISBLK(buf.st_mode) ? true : false;
 }
 
+bool isChr(const std::string& name) {
+  struct stat buf = {};
+  auto err = stat(name.c_str(), &buf);
+  if (err) {
+    throwSystemError(errno, folly::sformat("Path: {}", name));
+  }
+  return S_ISCHR(buf.st_mode) ? true : false;
+}
+
 /* throws error on any failure. */
 void makeDir(const std::string& name) {
   auto mkdirs = [](const std::string& path, mode_t mode) {

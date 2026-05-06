@@ -1280,7 +1280,10 @@ std::unique_ptr<Device> createDirectIoFileDevice(
       XLOGF(ERR, "NVMe FDP mode could not be enabled {}, Errno: {}", e.what(),
             errno);
       fdpNvmeVec.clear();
-      maxIOSize = 0u;
+      // Keep maxIOSize at maxDeviceWriteSize so the io_uring device remains
+      // functional in non-FDP mode. Resetting to 0 would leave maxIoSize_=0
+      // in FileDevice, which causes crashes in the RegionManager I/O path.
+      maxIOSize = maxDeviceWriteSize;
     }
   }
 #endif
