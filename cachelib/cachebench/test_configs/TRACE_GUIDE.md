@@ -131,6 +131,251 @@ NVM admission).
 
 ---
 
+## `run_test.sh` Line-by-Line Walkthrough
+
+### Bash strict mode
+
+```bash
+set -euo pipefail
+```
+
+| Flag | Meaning |
+|------|---------|
+| `-e` | Exit immediately if any command returns a non-zero exit code |
+| `-u` | Treat unset variables as errors (prevents silent empty-string bugs) |
+| `-o pipefail` | A pipeline fails if **any** command in it fails, not just the last one |
+
+### Auto-detecting the cachebench binary
+
+```bash
+if [ -z "${CACHEBENCH_BIN:-}" ]; then
+  GETDEPS_INST=$(python3 "$(dirname "$0")/../../../build/fbcode_builder/getdeps.py" \
+    --allow-system-packages show-inst-dir cachelib 2>/dev/null || true)
+  if [ -n "$GETDEPS_INST" ] && [ -f "$GETDEPS_INST/bin/cachebench" ]; then
+    CACHEBENCH_BIN="$GETDEPS_INST/bin/cachebench"
+  else
+    echo "ERROR: cachebench binary not found. Set CACHEBENCH_BIN=/path/to/cachebench"
+    exit 1
+  fi
+fi
+```
+
+`getdeps.py show-inst-dir cachelib` prints the path where getdeps installed the
+built cachelib (e.g. `/tmp/fbcode_builder_.../installed/cachelib`). The script
+appends `/bin/cachebench` to get the full binary path. `2>/dev/null || true`
+suppresses errors if getdeps isn't available — the outer `if` block then exits
+with a helpful message. To skip auto-detection, set `CACHEBENCH_BIN` in the
+environment before running the script.
+
+### Output file paths
+
+```bash
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONFIG_FILE="${CONFIG_FILE:-$SCRIPT_DIR/mixed_workload.json}"
+OUTPUT_CSV="$SCRIPT_DIR/trace_output.csv"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+COMBINED_FILE="$SCRIPT_DIR/cachebench_run_${TIMESTAMP}.txt"
+_STATS_TMP=$(mktemp /tmp/cachebench_stats_XXXXXX.txt)
+_RESULTS_TMP=$(mktemp /tmp/cachebench_results_XXXXXX.txt)
+```
+
+`SCRIPT_DIR` resolves the absolute path to the directory containing `run_test.sh`
+so that output files always land next to the script regardless of which directory
+you run it from.
+
+`CONFIG_FILE` uses the `${VAR:-default}` pattern — it takes the value of the
+`CONFIG_FILE` environment variable if set, otherwise falls back to `mixed_workload.json`
+in the same directory. This is how `Option C` (custom config) works.
+
+`mktemp` creates two uniquely-named temporary files under `/tmp/` for the
+intermediate stats and results output. Using `/tmp/` (instead of writing
+directly to the final file) prevents a partial write from corrupting the
+combined output if cachebench crashes mid-run. The `XXXXXX` suffix is replaced
+by a random string by the OS.
+
+### Starting bpftrace in the background
+
+```bash
+sudo /usr/bin/bpftrace -e '...' > "$OUTPUT_CSV" &
+BPF_PID=$!
+sleep 3
+```
+
+bpftrace is launched as a **background process** (`&`) so cachebench can run
+concurrently. `$!` captures the PID of the last backgrounded process so the
+script can kill it later.
+
+`sleep 3` waits for bpftrace to compile the BPF program and attach all four
+uprobes before cachebench starts. Without this delay, the first few seconds of
+cachebench output would be missed. If your machine is slow to attach uprobes,
+increase this to `sleep 5`.
+
+### The bpftrace `-e` string and shell quoting
+
+```bash
+sudo /usr/bin/bpftrace -e '
+uprobe:'"$CACHEBENCH_BIN"':_ZN...
+```
+
+bpftrace receives its program via `-e '...'`. Single quotes prevent the shell
+from expanding variables inside the bpftrace program — but `$CACHEBENCH_BIN`
+**must** be expanded by the shell (bpftrace needs the actual binary path). The
+quoting pattern `'...''"$VAR"''...'` breaks out of single quotes just long
+enough to let the shell expand the variable, then re-enters single quotes.
+
+### What each bpftrace probe prints
+
+All four probes share the same first two fields:
+
+| Field | bpftrace expression | Meaning |
+|-------|-------------------|---------|
+| Timestamp | `elapsed / 1000000` | `elapsed` is nanoseconds since bpftrace started; dividing by 1,000,000 converts to milliseconds |
+| Thread ID | `tid` | OS thread ID of the thread that triggered the probe |
+
+The `FileDevice::writeImpl` probe prints two extra fields:
+
+```
+printf("%u, FileDevice::write, %d, Size: %u, Offset: %lu\n",
+       elapsed / 1000000, tid, (uint32)arg2, arg1);
+```
+
+`arg0`, `arg1`, `arg2`... map to the function's arguments in order. The
+`FileDevice::writeImpl` signature is:
+
+```cpp
+void writeImpl(size_t offset, uint32_t size, const void* data, int ioType)
+//             arg0           arg1            arg2              arg3
+```
+
+Wait — the probe captures `arg2` as Size and `arg1` as Offset:
+
+| Capture | Arg | C++ type | Meaning |
+|---------|-----|----------|---------|
+| `(uint32)arg2` | `arg2` | `uint32_t` | Write size in bytes (cast to uint32 because bpftrace treats all args as 64-bit by default) |
+| `arg1` | `arg1` | `size_t` | Byte offset into the NVM device file |
+
+`arg0` (the implicit `this` pointer) is skipped. `arg3` (ioType) is not captured.
+
+### Running cachebench and capturing output
+
+```bash
+"$CACHEBENCH_BIN" --json_test_config "$CONFIG_FILE" \
+  --progress_stats_file "$_STATS_TMP" \
+  2>&1 | tee "$_RESULTS_TMP"
+```
+
+`--progress_stats_file` tells cachebench to write periodic in-progress statistics
+to a separate file. Without it, only the final summary is written to stdout.
+This flag lets you see intermediate hit ratios and throughput during a long run.
+
+`2>&1` merges stderr (where cachebench writes log lines like `I0505 ...`) into
+stdout so both are captured. `tee` writes the combined output to `_RESULTS_TMP`
+while also printing it to the terminal in real time.
+
+### Stopping bpftrace and merging output
+
+```bash
+kill "$BPF_PID" 2>/dev/null || true
+```
+
+Sends `SIGTERM` to the bpftrace process. `2>/dev/null` suppresses the "no such
+process" error if bpftrace already exited on its own. `|| true` prevents the
+`-e` flag from aborting the script if `kill` returns non-zero.
+
+```bash
+{
+  echo "=== Cachebench Progress Stats ==="
+  cat "$_STATS_TMP"
+  echo ""
+  echo "=== Cachebench Full Results ==="
+  cat "$_RESULTS_TMP"
+} > "$COMBINED_FILE"
+rm -f "$_STATS_TMP" "$_RESULTS_TMP"
+```
+
+The `{ ... } > file` pattern redirects the output of an entire block to a
+single file. The two temp files are concatenated into one `cachebench_run_<timestamp>.txt`
+then deleted. This is why the combined output has both the progress stats and
+the full results (including `== NVM Write Distribution ==`) in one place.
+
+---
+
+## How the bpftrace Probe Symbols Were Found
+
+The uprobe strings in `run_test.sh` use **C++ mangled symbol names** — the
+internal names the compiler assigns to every function in the binary. Here is
+how each symbol was derived and how to find new ones.
+
+### What C++ name mangling is
+
+The C++ compiler encodes a function's full qualified name (namespace, class,
+method, argument types) into a single string the linker can use. For example:
+
+```
+facebook::cachelib::navy::(anonymous)::FileDevice::writeImpl(size_t, uint32_t, const void*, int)
+```
+
+becomes:
+
+```
+_ZN8facebook8cachelib4navy12_GLOBAL__N_110FileDevice9writeImplEmjPKvi
+```
+
+Breaking it down:
+
+| Segment | Meaning |
+|---------|---------|
+| `_ZN` | Start of a namespaced C++ symbol |
+| `8facebook` | Namespace `facebook` (8 = length) |
+| `8cachelib` | Namespace `cachelib` |
+| `4navy` | Namespace `navy` |
+| `12_GLOBAL__N_1` | Anonymous namespace `(anonymous)` — compiler-generated name |
+| `10FileDevice` | Class `FileDevice` |
+| `9writeImpl` | Method `writeImpl` |
+| `EmjPKvi` | Parameter types: `m`=size_t, `j`=uint32_t, `PKv`=const void*, `i`=int |
+
+### How to look up any symbol in the cachebench binary
+
+```bash
+CACHEBENCH_BIN=$(python3 build/fbcode_builder/getdeps.py \
+  --allow-system-packages show-inst-dir cachelib)/bin/cachebench
+
+# List all Navy-related symbols (demangled, human-readable)
+nm "$CACHEBENCH_BIN" | c++filt | grep "facebook::cachelib::navy" | grep -v " U "
+
+# Find the mangled name for a specific function
+nm "$CACHEBENCH_BIN" | grep writeImpl
+nm "$CACHEBENCH_BIN" | grep BigHash | grep insert
+
+# Verify a mangled name demangles correctly
+echo "_ZN8facebook8cachelib4navy12_GLOBAL__N_110FileDevice9writeImplEmjPKvi" | c++filt
+```
+
+### The four probes in `run_test.sh` and why each was chosen
+
+| Mangled symbol | Demangled name | Why probed |
+|----------------|---------------|------------|
+| `_ZN8facebook8cachelib4navy7BigHash6insertENS0_9HashedKeyENS1_11BufferViewTIKhEEhjj` | `BigHash::insert(HashedKey, BufferView, ...)` | Fires every time an item is routed to BigHash; counts small-item writes |
+| `_ZN8facebook8cachelib4navy10BlockCache6insertENS0_9HashedKeyENS1_11BufferViewTIKhEEhjj` | `BlockCache::insert(HashedKey, BufferView, ...)` | Fires every time an item is routed to BlockCache; counts large-item writes |
+| `_ZN8facebook8cachelib4navy6Driver6insertENS0_9HashedKeyENS1_11BufferViewTIKhEEhjj` | `Driver::insert(HashedKey, BufferView, ...)` | The dispatcher that calls BigHash or BlockCache; **not captured** — LTO inlines it so no stable uprobe point exists |
+| `_ZN8facebook8cachelib4navy12_GLOBAL__N_110FileDevice9writeImplEmjPKvi` | `FileDevice::writeImpl(size_t offset, uint32_t size, const void* data, int)` | Fires on every physical NVM write; exposes write size and byte offset into the device file |
+
+> `FileDevice` lives in an **anonymous namespace** (`_GLOBAL__N_1`) inside
+> `Device.cpp`. The compiler gives it this mangled prefix to prevent name
+> collisions across translation units. This is why the symbol looks unusual
+> compared to `BigHash` and `BlockCache`.
+
+### Adding a new probe
+
+1. Find the mangled symbol: `nm "$CACHEBENCH_BIN" | grep <keyword>`
+2. Verify it: `echo "<mangled>" | c++filt`
+3. Check argument count: bpftrace 0.9.x on x86_64 only supports up to `arg5`
+   (the first 6 registers). Arguments beyond that are on the stack and require
+   bpftrace ≥ 0.14.
+4. Add the uprobe block to `run_test.sh` following the existing pattern.
+
+---
+
 ## Output CSV Format
 
 After parsing, `trace_output.csv` has 10 columns:
@@ -229,34 +474,119 @@ cause the admitted distribution to differ — often significantly:
 
 To get NVM counts that closely match the configured probability split, use a
 small DRAM cache (so all size classes are evicted at similar rates) and a
-workload where value sizes are in a narrow range. The example run in this repo
-(`cachebench_run_20260505_221431.txt`) achieves 96.6% BigHash / 3.4% BlockCache
-with a 99%/1% configured split — the small gap is from the DRAM eviction bias
-pushing some large items through.
+workload where value sizes are in a narrow range.
+
+---
+
+## Controlling Total NVM Engine Inserts
+
+The `Total NVM engine inserts` line in `== NVM Write Distribution ==` is the
+number of items actually written into BigHash or BlockCache. It is always much
+smaller than the number of DRAM evictions because two stages independently
+filter items before they reach an NVM engine:
+
+```
+SET → DRAM → [eviction] → NVM put attempt → [admission] → NVM engine insert
+```
+
+### Stage 1 — How many items are evicted from DRAM
+
+| Setting | Effect on evictions |
+|---------|-------------------|
+| `cacheSizeMB` ↓ | Less DRAM → fills faster → more evictions |
+| `numOps` ↑ | More writes → more churn → more evictions |
+| `numKeys` ↓ | Fewer unique keys → keys overwrite each other in DRAM instead of evicting old items |
+| Larger value sizes | Fill DRAM slab classes faster → more evictions |
+
+### Stage 2 — How many evicted items are admitted to NVM
+
+`navyAdmissionWriteRate` is the main gate. It caps how many bytes per second
+can be written to NVM. Once the limit is hit, further inserts are dropped.
+
+| Setting | Effect on admission |
+|---------|-------------------|
+| `navyAdmissionWriteRate` ↑ | More bytes/sec allowed → higher admission |
+| `navyAdmissionWriteRate: 0` | **Disables rate limiting entirely** — every item evicted from DRAM is written to NVM |
+| `navyMaxConcurrentInserts` ↑ | More in-flight inserts allowed before queuing backs up |
+
+### Example: maximise NVM inserts (test routing distribution accurately)
+
+```json
+"navyAdmissionWriteRate": 0,
+"cacheSizeMB": 128,
+"numOps": 300000
+```
+
+Setting `navyAdmissionWriteRate: 0` admits everything evicted from DRAM. Useful
+when you want the `== NVM Write Distribution ==` percentages to reflect actual
+routing rather than admission-filtered routing.
+
+### Example: minimise NVM inserts (simulate a write-endurance-limited drive)
+
+```json
+"navyAdmissionWriteRate": 10485760,
+"cacheSizeMB": 512
+```
+
+A lower rate (10 MB/s here) combined with a larger DRAM cache means few items
+are evicted and fewer still are admitted — matching a scenario where NVM write
+endurance is a hard constraint.
+
+### Observed values from the threshold runs
+
+| Config | DRAM evictions | NVM put attempts | Admitted | Total NVM inserts |
+|--------|---------------|-----------------|----------|------------------|
+| `threshold_low` (220) | 1,010,851 | 1,010,851 | 3.5% | 35,622 |
+| `threshold_mid` (668) | ~1,010,000 | ~1,010,000 | ~3.9% | 39,310 |
+| `threshold_high` (4252) | ~1,010,000 | ~1,010,000 | ~3.8% | 38,409 |
+
+The admission rate (~3–4% success) is consistent across all three because the
+value size distribution and `navyAdmissionWriteRate` are identical — only the
+routing threshold changes, which affects *where* admitted items go, not *how many*.
 
 ---
 
 ## Workload Configuration (`mixed_workload.json`)
 
-Key parameters you may want to tune:
+### `cache_config` parameters
 
 | Parameter | Current default | Effect |
 |-----------|----------------|--------|
-| `cacheSizeMB` | 128 | DRAM cache size; smaller = more DRAM evictions, more NVM traffic |
-| `nvmCacheSizeMB` | 1024 | NVM cache size (ignored when `nvmCachePaths: []`) |
-| `navySmallItemMaxSize` | 4252 | Items with `key+nvmItem.totalSize ≤ this` go to BigHash |
-| `navyBigHashBucketSize` | 8192 | BigHash flush granularity; must be > `navySmallItemMaxSize + 44` |
-| `navyBigHashSizePct` | 10 | Percent of NVM space reserved for BigHash |
-| `navyRegionSizeMB` | 16 | BlockCache region size; each region = 16 × 1 MB writes |
-| `numOps` | 300000 | Operations per thread |
-| `numThreads` | 4 | Concurrent workload threads |
-| `valSizeRange` | 64–65536 | Item value sizes (exact sizes sampled from this list) |
-| `valSizeRangeProbability` | 90/7/2/1% | Probability weights for each size |
+| `cacheSizeMB` | 128 | DRAM cache size. Smaller = fills faster = more evictions to NVM. Must be large enough for at least one slab per allocation class (~96 MB minimum with 65536 B values). |
+| `poolRebalanceIntervalSec` | 1 | How often (seconds) the slab allocator rebalances memory across allocation classes. Lower = more responsive to workload shifts; set to 0 to disable. |
+| `moveOnSlabRelease` | false | When a slab is released during rebalancing, move its live items to another slab (`true`) or evict them (`false`). `false` is faster but loses the items. |
+| `nvmCacheSizeMB` | 1024 | Total NVM cache size in MB. Ignored when `nvmCachePaths: []` (in-memory mock). |
+| `navyBlockSize` | 4096 | I/O alignment granularity in bytes. All NVM reads and writes are aligned to this size. Must match the device's physical sector size (4096 for NVMe). |
+| `navyRegionSizeMB` | 16 | BlockCache region size. Each region holds items until full, then is written as a unit. Larger = fewer but bigger writes; smaller = more frequent writes. |
+| `navyBigHashSizePct` | 10 | Percent of total NVM space reserved for BigHash. The remaining 90% goes to BlockCache. |
+| `navySmallItemMaxSize` | 4252 | Routing threshold. Items where `key.size() + nvmItem.totalSize() ≤ this` go to BigHash; larger items go to BlockCache. See routing section for the size formula. |
+| `navyBigHashBucketSize` | 8192 | Physical BigHash bucket size in bytes. Each bucket flush = one NVM write of this size. Must satisfy `navySmallItemMaxSize < navyBigHashBucketSize - 44`. |
+| `navyAdmissionWriteRate` | 104857600 | NVM write rate limit in bytes/sec (100 MB/s here). Controls how many evicted items are actually admitted to NVM. Set to `0` to disable and admit everything. |
+| `navyMaxConcurrentInserts` | 16 | Maximum number of NVM insert operations in-flight at once. Inserts beyond this limit are queued or dropped under heavy load. |
+| `navyReaderThreads` | 4 | Thread pool size for NVM read operations (GET path). |
+| `navyWriterThreads` | 2 | Thread pool size for NVM write operations (eviction path). |
+| `navyEnableIoUring` | false | Use io_uring instead of libaio for NVM I/O. Faster on modern kernels but segfaults on kernel 6.1 with raw block devices. See `nvmCachePaths` section. |
+| `deviceEnableFDP` | false | Enable NVMe FDP (Flexible Data Placement) placement hints. Requires `navyEnableIoUring: true` and an FDP-capable NVMe character device. |
+| `navyQDepth` | 32 | I/O submission queue depth. Number of I/O requests that can be outstanding to the device at once. Higher = more parallelism but more memory. |
 
-> **`valSizeRange` and `valSizeRangeProbability` are required.** There is no
-> built-in default distribution. If omitted, cachebench passes the startup
-> validation check but crashes with undefined behavior at runtime when it tries
-> to sample an item size from an empty vector. Always set both fields explicitly.
+### `test_config` parameters
+
+| Parameter | Current default | Effect |
+|-----------|----------------|--------|
+| `numOps` | 300000 | Operations **per thread**. Total ops = `numOps × numThreads` (300,000 × 4 = 1,200,000 here). |
+| `numThreads` | 4 | Number of concurrent workload threads. Each runs `numOps` operations independently. |
+| `numKeys` | 1000000 | Size of the key pool. All operations draw from this fixed set of keys. Controls key reuse: `numKeys` >> total ops = almost no reuse; `numKeys` << total ops = heavy reuse and high DRAM churn. With 1,200,000 total SETs and 1,000,000 keys, each key is written ~1.2 times on average — minimal reuse. |
+| `keySizeRange` | [8, 32, 64, 128] | Key size bucket boundaries in bytes. Each bucket covers the range [left, right). |
+| `keySizeRangeProbability` | [0.6, 0.3, 0.1] | Probability of sampling a key from each bucket. Must have one fewer entry than `keySizeRange`. Keys are drawn uniformly within the chosen bucket: [8–32), [32–64), or [64–128). |
+| `valSizeRange` | [64, 512, 4096, 65536] | Exact value sizes in bytes to sample from. Unlike `keySizeRange`, these are discrete exact values — not ranges. |
+| `valSizeRangeProbability` | [0.90, 0.07, 0.02, 0.01] | Probability weight for each exact value size. Must have the same length as `valSizeRange`. Determines both the write mix and (indirectly) which items reach NVM via DRAM eviction. |
+| `getRatio` | 0.0 | Fraction of operations that are GET (cache read). Must sum to 1.0 with `setRatio` and `delRatio`. |
+| `setRatio` | 1.0 | Fraction of operations that are SET (cache write). |
+| `delRatio` | 0.0 | Fraction of operations that are DELETE. |
+
+> **`valSizeRange` and `valSizeRangeProbability` are required.** If omitted,
+> cachebench crashes with undefined behavior at runtime when sampling an item size
+> from an empty vector. Always set both fields explicitly.
 
 > **`navyBigHashBucketSize` constraint:** `navySmallItemMaxSize` must be less than
 > `navyBigHashBucketSize - 44` (44 bytes of BigHash bucket header overhead).

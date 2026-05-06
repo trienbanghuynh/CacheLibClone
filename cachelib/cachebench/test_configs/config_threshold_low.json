@@ -1,0 +1,41 @@
+{
+  "cache_config": {
+    "cacheSizeMB": 128,
+    "poolRebalanceIntervalSec": 1,
+    "moveOnSlabRelease": false,
+
+    "nvmCachePaths": [],
+    "nvmCacheSizeMB": 1024,
+
+    "navyBlockSize": 4096,
+    "navyRegionSizeMB": 16,
+
+    "navyBigHashSizePct": 10,
+    "navySmallItemMaxSize": 220,
+    "navyBigHashBucketSize": 8192,
+
+    "navyAdmissionWriteRate": 104857600,
+    "navyMaxConcurrentInserts": 16,
+    "navyReaderThreads": 4,
+    "navyWriterThreads": 2,
+
+    "navyEnableIoUring": false,
+    "deviceEnableFDP": false,
+    "navyQDepth": 32
+  },
+  "test_config": {
+    "numOps": 300000,
+    "numThreads": 4,
+    "numKeys": 1000000,
+
+    "keySizeRange": [8, 32, 64, 128],
+    "keySizeRangeProbability": [0.6, 0.3, 0.1],
+
+    "valSizeRange": [64, 512, 4096, 65536],
+    "valSizeRangeProbability": [0.25, 0.25, 0.25, 0.25],
+
+    "getRatio": 0.0,
+    "setRatio": 1.0,
+    "delRatio": 0.0
+  }
+}
