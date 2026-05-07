@@ -63,6 +63,8 @@ target_link_libraries(cachelib_navy PUBLIC
   cachelib_shm
   cachelib_nvmitem
   GTest::gmock
+  Folly::folly_io_async_io_uring
+  uring
   )
 
 install(TARGETS cachelib_navy
