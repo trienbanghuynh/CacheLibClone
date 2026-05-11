@@ -1,8 +1,8 @@
 #!/bin/bash
-# Run mixed-workload cachebench across navySmallItemMaxSize variants, capturing
-# BigHash, BlockCache, and FDP dispatch events via bpftrace per run.
-# Requires: bpftrace, a built cachebench binary.
-# Output per config: trace_output_<size>.csv and cachebench_run_<size>_TIMESTAMP.txt
+# Run cachebench across six navySmallItemMaxSize variants (512, 1024, 2048, 3072, 4096, 8148).
+# For each config, progress stats and full results are merged into one combined output file.
+# Requires: a built cachebench binary at the path set in CACHEBENCH_BIN.
+# Output per config: cachebench_run_<size>_<TIMESTAMP>.txt (progress stats + full results)
 
 set -euo pipefail
 CACHEBENCH_BIN="/home/rsebenchtop2/cachelib_build/build/cachelib/cachebench/cachebench"
@@ -47,7 +47,6 @@ for entry in "${CONFIGS[@]}"; do
     --progress_stats_file="$_STATS_TMP" \
     2>&1 | tee "$_RESULTS_TMP"
 
-  # kill "$BPF_PID" 2>/dev/null || true
 
   # Merge progress stats and full results into one file.
   {
@@ -60,10 +59,6 @@ for entry in "${CONFIGS[@]}"; do
   rm -f "$_STATS_TMP" "$_RESULTS_TMP"
 
   echo "Done: $CONFIG"
-  # echo "  Trace  : $OUTPUT_CSV"
-  # echo "  Output : $COMBINED_FILE"
-  # echo "To convert trace run:"
-  # echo "  python3 $SCRIPT_DIR/generate_trace_csv.py $OUTPUT_CSV"
   echo ""
 done
 

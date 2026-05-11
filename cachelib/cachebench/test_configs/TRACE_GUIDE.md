@@ -10,7 +10,7 @@ a live `cachebench` workload.
 
 | File | Purpose |
 |------|---------|
-| `run_test.sh` | Runs cachebench + bpftrace simultaneously; writes `trace_output.csv` and a combined `cachebench_run_<timestamp>.txt` (stats + results merged) |
+| `run_test.sh` | Loops over six navySmallItemMaxSize configs; runs cachebench for each and writes a combined `cachebench_run_<size>_<timestamp>.txt` (progress stats + full results merged). No bpftrace. |
 | `mixed_workload.json` | Cachebench workload config — NVM cache size, BigHash/BlockCache split, op ratios |
 | `generate_trace_csv.py` | Parses and enriches `trace_output.csv` in place; auto-runs `run_test.sh` if no trace is found |
 | `trace_output.csv` | **Primary output** — starts as raw bpftrace lines; overwritten in place with enriched 10-column CSV after parsing |
@@ -37,50 +37,31 @@ python3 build/fbcode_builder/getdeps.py \
 # Append /bin/cachebench to the printed path to get the full binary path
 ```
 
-### 2. Install bpftrace (apt version)
+### 2. Kernel requirements
 
-```bash
-sudo apt install bpftrace
-/usr/bin/bpftrace --version   # should print 0.9.x or later
-```
-
-> **Important:** Use `/usr/bin/bpftrace` (the apt package). The AppImage version
-> sometimes installed at `/usr/local/bin/bpftrace` can fail with a Python
-> init error when running uprobe programs on systems without a Nix store.
-
-### 3. Kernel requirements
-
-- Linux kernel 4.14+ with BPF and uprobe support enabled (standard on Ubuntu 20.04+)
-- `sudo` access (bpftrace requires root to attach uprobes)
+- Linux kernel 4.14+ (standard on Ubuntu 20.04+)
+- `sudo` access (required to run cachebench against raw NVMe devices; not needed for in-memory mode)
 
 ---
 
-## Step-by-Step: Run the Trace
+## Step-by-Step: Run the Tests
 
-### Step 1 — Run cachebench with bpftrace capture
+### Step 1 — Run cachebench across all navySmallItemMaxSize configs
+
+Edit `CACHEBENCH_BIN` at the top of `run_test.sh` to point to your built binary, then:
 
 ```bash
 cd ~/CacheLib
-
-# Option A: auto-detect cachebench (uses getdeps install dir)
 bash cachelib/cachebench/test_configs/run_test.sh
-
-# Option B: point to binary explicitly
-CACHEBENCH_BIN=/path/to/cachebench \
-  bash cachelib/cachebench/test_configs/run_test.sh
-
-# Option C: use a custom workload config
-CONFIG_FILE=/path/to/my_config.json \
-  bash cachelib/cachebench/test_configs/run_test.sh
 ```
 
-The script will:
-1. Start bpftrace in the background and wait 3 seconds for uprobes to attach
-2. Run cachebench with `mixed_workload.json` (300,000 ops, 4 threads)
-3. Kill bpftrace and merge progress stats + full results into one `cachebench_run_<timestamp>.txt`
-4. Write two output files next to the script: `trace_output.csv` and `cachebench_run_<timestamp>.txt`
+The script will, for each of the six configs (`navySmallItemMaxSize` = 512, 1024, 2048, 3072, 4096, 8148):
+1. Run cachebench with `--progress=600` and capture periodic progress stats to a temp file
+2. Tee the full results (stdout + stderr) to a second temp file
+3. Merge progress stats and full results into one `cachebench_run_<size>_<timestamp>.txt` next to the script
+4. Delete the temp files
 
-Expected runtime: **~5–15 seconds** (in-memory mode; no disk I/O).
+Expected runtime: **~5–15 seconds per config** (in-memory mode; no disk I/O).
 
 ### Step 2 — Parse into enriched CSV
 
@@ -145,47 +126,53 @@ set -euo pipefail
 | `-u` | Treat unset variables as errors (prevents silent empty-string bugs) |
 | `-o pipefail` | A pipeline fails if **any** command in it fails, not just the last one |
 
-### Auto-detecting the cachebench binary
+### Binary path check
 
 ```bash
-if [ -z "${CACHEBENCH_BIN:-}" ]; then
-  GETDEPS_INST=$(python3 "$(dirname "$0")/../../../build/fbcode_builder/getdeps.py" \
-    --allow-system-packages show-inst-dir cachelib 2>/dev/null || true)
-  if [ -n "$GETDEPS_INST" ] && [ -f "$GETDEPS_INST/bin/cachebench" ]; then
-    CACHEBENCH_BIN="$GETDEPS_INST/bin/cachebench"
-  else
-    echo "ERROR: cachebench binary not found. Set CACHEBENCH_BIN=/path/to/cachebench"
+CACHEBENCH_BIN="/home/rsebenchtop2/cachelib_build/build/cachelib/cachebench/cachebench"
+
+if [ ! -f "$CACHEBENCH_BIN" ]; then
+    echo "ERROR: cachebench binary not found. Set CACHEBENCH_BIN= $CACHEBENCH_BIN"
     exit 1
-  fi
 fi
 ```
 
-`getdeps.py show-inst-dir cachelib` prints the path where getdeps installed the
-built cachelib (e.g. `/tmp/fbcode_builder_.../installed/cachelib`). The script
-appends `/bin/cachebench` to get the full binary path. `2>/dev/null || true`
-suppresses errors if getdeps isn't available — the outer `if` block then exits
-with a helpful message. To skip auto-detection, set `CACHEBENCH_BIN` in the
-environment before running the script.
+The binary path is hardcoded at the top of the script. Edit `CACHEBENCH_BIN` to
+point to your own build before running. The `if [ ! -f ... ]` guard exits early
+with a clear error rather than failing inside the loop.
 
-### Output file paths
+### Config array and output file paths
 
 ```bash
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CONFIG_FILE="${CONFIG_FILE:-$SCRIPT_DIR/mixed_workload.json}"
-OUTPUT_CSV="$SCRIPT_DIR/trace_output.csv"
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-COMBINED_FILE="$SCRIPT_DIR/cachebench_run_${TIMESTAMP}.txt"
-_STATS_TMP=$(mktemp /tmp/cachebench_stats_XXXXXX.txt)
-_RESULTS_TMP=$(mktemp /tmp/cachebench_results_XXXXXX.txt)
+
+CONFIGS=(
+  "mixed_workload_navySmall_512.json:512"
+  "mixed_workload_navySmall_1024.json:1024"
+  ...
+)
 ```
 
 `SCRIPT_DIR` resolves the absolute path to the directory containing `run_test.sh`
 so that output files always land next to the script regardless of which directory
 you run it from.
 
-`CONFIG_FILE` uses the `${VAR:-default}` pattern — it takes the value of the
-`CONFIG_FILE` environment variable if set, otherwise falls back to `mixed_workload.json`
-in the same directory. This is how `Option C` (custom config) works.
+`CONFIGS` pairs each JSON config filename with its `navySmallItemMaxSize` label
+using a `filename:label` format. The loop splits on `:` to get both values:
+
+```bash
+CONFIG="${entry%%:*}"   # everything before the first ':'
+SIZE="${entry##*:}"     # everything after the last ':'
+```
+
+Inside the loop, per-run output paths are derived:
+
+```bash
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+COMBINED_FILE="$SCRIPT_DIR/cachebench_run_${SIZE}_${TIMESTAMP}.txt"
+_STATS_TMP=$(mktemp /tmp/cachebench_stats_XXXXXX.txt)
+_RESULTS_TMP=$(mktemp /tmp/cachebench_results_XXXXXX.txt)
+```
 
 `mktemp` creates two uniquely-named temporary files under `/tmp/` for the
 intermediate stats and results output. Using `/tmp/` (instead of writing
@@ -193,94 +180,32 @@ directly to the final file) prevents a partial write from corrupting the
 combined output if cachebench crashes mid-run. The `XXXXXX` suffix is replaced
 by a random string by the OS.
 
-### Starting bpftrace in the background
-
-```bash
-sudo /usr/bin/bpftrace -e '...' > "$OUTPUT_CSV" &
-BPF_PID=$!
-sleep 3
-```
-
-bpftrace is launched as a **background process** (`&`) so cachebench can run
-concurrently. `$!` captures the PID of the last backgrounded process so the
-script can kill it later.
-
-`sleep 3` waits for bpftrace to compile the BPF program and attach all four
-uprobes before cachebench starts. Without this delay, the first few seconds of
-cachebench output would be missed. If your machine is slow to attach uprobes,
-increase this to `sleep 5`.
-
-### The bpftrace `-e` string and shell quoting
-
-```bash
-sudo /usr/bin/bpftrace -e '
-uprobe:'"$CACHEBENCH_BIN"':_ZN...
-```
-
-bpftrace receives its program via `-e '...'`. Single quotes prevent the shell
-from expanding variables inside the bpftrace program — but `$CACHEBENCH_BIN`
-**must** be expanded by the shell (bpftrace needs the actual binary path). The
-quoting pattern `'...''"$VAR"''...'` breaks out of single quotes just long
-enough to let the shell expand the variable, then re-enters single quotes.
-
-### What each bpftrace probe prints
-
-All four probes share the same first two fields:
-
-| Field | bpftrace expression | Meaning |
-|-------|-------------------|---------|
-| Timestamp | `elapsed / 1000000` | `elapsed` is nanoseconds since bpftrace started; dividing by 1,000,000 converts to milliseconds |
-| Thread ID | `tid` | OS thread ID of the thread that triggered the probe |
-
-The `FileDevice::writeImpl` probe prints two extra fields:
-
-```
-printf("%u, FileDevice::write, %d, Size: %u, Offset: %lu\n",
-       elapsed / 1000000, tid, (uint32)arg2, arg1);
-```
-
-`arg0`, `arg1`, `arg2`... map to the function's arguments in order. The
-`FileDevice::writeImpl` signature is:
-
-```cpp
-void writeImpl(size_t offset, uint32_t size, const void* data, int ioType)
-//             arg0           arg1            arg2              arg3
-```
-
-Wait — the probe captures `arg2` as Size and `arg1` as Offset:
-
-| Capture | Arg | C++ type | Meaning |
-|---------|-----|----------|---------|
-| `(uint32)arg2` | `arg2` | `uint32_t` | Write size in bytes (cast to uint32 because bpftrace treats all args as 64-bit by default) |
-| `arg1` | `arg1` | `size_t` | Byte offset into the NVM device file |
-
-`arg0` (the implicit `this` pointer) is skipped. `arg3` (ioType) is not captured.
-
 ### Running cachebench and capturing output
 
 ```bash
-"$CACHEBENCH_BIN" --json_test_config "$CONFIG_FILE" \
-  --progress_stats_file "$_STATS_TMP" \
+sudo env PATH="$PATH" LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" "$CACHEBENCH_BIN" \
+  --json_test_config="$SCRIPT_DIR/$CONFIG" \
+  --progress=600 \
+  --progress_stats_file="$_STATS_TMP" \
   2>&1 | tee "$_RESULTS_TMP"
 ```
 
+`sudo env PATH=... LD_LIBRARY_PATH=...` preserves the current user's `PATH` and
+`LD_LIBRARY_PATH` when escalating to root. Without this, `sudo` uses a minimal
+environment that may not find shared libraries the binary needs.
+
+`--progress=600` prints an in-progress summary line to stdout every 600 seconds.
+For short in-memory runs this fires at most once, but it keeps the terminal from
+going silent on long real-device runs.
+
 `--progress_stats_file` tells cachebench to write periodic in-progress statistics
-to a separate file. Without it, only the final summary is written to stdout.
-This flag lets you see intermediate hit ratios and throughput during a long run.
+to a separate file so they are not interleaved with the full results.
 
 `2>&1` merges stderr (where cachebench writes log lines like `I0505 ...`) into
-stdout so both are captured. `tee` writes the combined output to `_RESULTS_TMP`
-while also printing it to the terminal in real time.
+stdout so both are captured by `tee`. `tee` writes the combined output to
+`_RESULTS_TMP` while also printing it to the terminal in real time.
 
-### Stopping bpftrace and merging output
-
-```bash
-kill "$BPF_PID" 2>/dev/null || true
-```
-
-Sends `SIGTERM` to the bpftrace process. `2>/dev/null` suppresses the "no such
-process" error if bpftrace already exited on its own. `|| true` prevents the
-`-e` flag from aborting the script if `kill` returns non-zero.
+### Merging output
 
 ```bash
 {
@@ -294,9 +219,10 @@ rm -f "$_STATS_TMP" "$_RESULTS_TMP"
 ```
 
 The `{ ... } > file` pattern redirects the output of an entire block to a
-single file. The two temp files are concatenated into one `cachebench_run_<timestamp>.txt`
-then deleted. This is why the combined output has both the progress stats and
-the full results (including `== NVM Write Distribution ==`) in one place.
+single file. The two temp files are concatenated into one
+`cachebench_run_<size>_<timestamp>.txt` then deleted. This is why the combined
+output has both the progress stats and the full results (including
+`== NVM Write Distribution ==`) in one place.
 
 ---
 
